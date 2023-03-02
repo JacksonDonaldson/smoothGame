@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 public class movement : MonoBehaviour
 {
@@ -9,8 +10,8 @@ public class movement : MonoBehaviour
     [SerializeField] private float drag = 1f;
     [SerializeField] private float jumpForce = 7f; // jump force
     [SerializeField] private LayerMask groundLayer; // layermask for detecting ground
-    [SerializeField] private Transform groundCheck; // transform at the player's feet for ground detection
-    [SerializeField] private float groundRadius = 0.1f; // radius of the circle used for ground detection
+
+    [SerializeField] private float groundCheckDistance = 0.7f; // radius of the circle used for ground detection
     [SerializeField] private float sprintMult = 1.5f;
     [SerializeField] private Vector2 wallJumpSpeed = new Vector2(5f,7f);
 
@@ -21,6 +22,10 @@ public class movement : MonoBehaviour
     [SerializeField] private bool canWallJump = false;
     private int wallDirection = 1;
 
+    [SerializeField] private float gravityMult = 1.5f;
+    [SerializeField] private float maxSlopeAngle = 45f;
+
+
     private void Start()
     {
         rb = GetComponent<Rigidbody2D>(); // get the player's Rigidbody2D component
@@ -28,6 +33,8 @@ public class movement : MonoBehaviour
 
     private void FixedUpdate()
     {
+        
+
         float mult = 1;
         if (Input.GetButton("Sprint"))
         {
@@ -41,7 +48,18 @@ public class movement : MonoBehaviour
         }
         else
         {
-            rb.velocity = new Vector2(rb.velocity.x + Time.deltaTime * horizontalInput * airspeed * mult - drag * rb.velocity.x * Time.deltaTime, rb.velocity.y); // move the player horizontally
+            float dragForce = drag * rb.velocity.x;
+            float playerForce = airspeed * mult * horizontalInput;
+            if(Math.Sign(playerForce - dragForce) == Math.Sign(playerForce) )
+            {
+                rb.velocity = new Vector2(rb.velocity.x + Time.deltaTime * horizontalInput * airspeed * mult - drag * rb.velocity.x * Time.deltaTime, rb.velocity.y); // move the player horizontally
+
+            }
+        }
+
+        if(isGrounded && horizontalInput == 0)
+        {
+            rb.velocity = Vector2.zero;
         }
         
 
@@ -68,21 +86,54 @@ public class movement : MonoBehaviour
             }
         }
         jumpWasPressed = false;
+
+        if (isGrounded)
+        {
+            rb.gravityScale = 0;
+        }
+        else if (rb.velocity.y < 0)
+        {
+            rb.gravityScale = gravityMult;
+        }
+        else
+        {
+            rb.gravityScale = 1;
+        }
+
     }
+
 
     private void Update()
     {
-        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundRadius, groundLayer); // check if the player is grounded using a circle cast
-        if (isGrounded) // if the player is grounded, set canJump to true
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, groundCheckDistance, groundLayer);
+        if (hit.collider != null)
         {
-            canJump = true;
+            float slopeAngle = Vector2.Angle(hit.normal, Vector2.up);
+            if (slopeAngle <= maxSlopeAngle)
+            {
+                isGrounded = true;
+            }
+            else
+            {
+                isGrounded = false;
+            }
         }
-        if (Input.GetButtonDown("Jump"))
+        else
         {
-            jumpWasPressed = true;
+            isGrounded = false;
         }
 
-    }
+
+        if (isGrounded) // if the player is grounded, set canJump to true
+            {
+                canJump = true;
+            }
+            if (Input.GetButtonDown("Jump"))
+            {
+                jumpWasPressed = true;
+            }
+
+        }
     void OnCollisionStay2D(Collision2D collision)
     {
         print(collision.gameObject.tag);
