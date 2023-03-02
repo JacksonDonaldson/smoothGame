@@ -17,7 +17,7 @@ public class movement : MonoBehaviour
 
     private Rigidbody2D rb; // reference to the player's Rigidbody2D
     [SerializeField] private bool isGrounded = false; // flag for whether the player is grounded
-    [SerializeField] private bool canJump = true; // flag for whether the player can jump
+    [SerializeField] private int jumps = 2; // flag for whether the player can jump
     private bool jumpWasPressed = false;
     [SerializeField] private bool canWallJump = false;
     private int wallDirection = 1;
@@ -25,7 +25,8 @@ public class movement : MonoBehaviour
     [SerializeField] private float gravityMult = 1.5f;
     [SerializeField] private float maxSlopeAngle = 45f;
 
-
+    [SerializeField] private float terminalVelocity = -10f;
+    [SerializeField] private float wallTerminalVelocity = -5f;
     private void Start()
     {
         rb = GetComponent<Rigidbody2D>(); // get the player's Rigidbody2D component
@@ -50,7 +51,7 @@ public class movement : MonoBehaviour
         {
             float dragForce = drag * rb.velocity.x;
             float playerForce = airspeed * mult * horizontalInput;
-            if(Math.Sign(playerForce - dragForce) == Math.Sign(playerForce) )
+            if(Math.Sign(playerForce - dragForce) == Math.Sign(playerForce) || playerForce == 0)
             {
                 rb.velocity = new Vector2(rb.velocity.x + Time.deltaTime * horizontalInput * airspeed * mult - drag * rb.velocity.x * Time.deltaTime, rb.velocity.y); // move the player horizontally
 
@@ -74,16 +75,22 @@ public class movement : MonoBehaviour
 
         if (jumpWasPressed)
         {
-            if (isGrounded && canJump) // jump if the player is grounded and can jump
-            {
-                rb.AddForce(new Vector2(0f, jumpForce), ForceMode2D.Impulse);
-                canJump = false;
-            }
-            else if (canWallJump)
+            if (canWallJump)
             {
                 float speed = wallJumpSpeed.x * wallDirection;
                 rb.velocity = new Vector2(speed, wallJumpSpeed.y);
             }
+            else if (jumps > 0) // jump if the player is grounded and can jump
+            {
+                
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                if (!isGrounded)
+                {
+                    jumps--;
+                }
+                
+            }
+            
         }
         jumpWasPressed = false;
 
@@ -100,6 +107,16 @@ public class movement : MonoBehaviour
             rb.gravityScale = 1;
         }
 
+        float maxFallSpeed = terminalVelocity;
+        if (canWallJump)
+        {
+            maxFallSpeed = wallTerminalVelocity;
+        }
+        if(rb.velocity.y < maxFallSpeed)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, maxFallSpeed);
+        }
+
     }
 
 
@@ -112,6 +129,7 @@ public class movement : MonoBehaviour
             if (slopeAngle <= maxSlopeAngle)
             {
                 isGrounded = true;
+                
             }
             else
             {
@@ -126,7 +144,7 @@ public class movement : MonoBehaviour
 
         if (isGrounded) // if the player is grounded, set canJump to true
             {
-                canJump = true;
+                jumps = 1;
             }
             if (Input.GetButtonDown("Jump"))
             {
@@ -136,17 +154,21 @@ public class movement : MonoBehaviour
         }
     void OnCollisionStay2D(Collision2D collision)
     {
-        print(collision.gameObject.tag);
+        //print(collision.gameObject.tag);
         if (collision.gameObject.tag == "WallJump")
         {
-            if(collision.transform.position.x < transform.position.x)
+            RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.left, groundCheckDistance, groundLayer);
+
+            if(hit.collider != null)
             {
+                print(hit.collider.gameObject);
                 wallDirection = 1;
             }
             else
             {
                 wallDirection = -1;
             }
+
 
             if (!isGrounded)
             {
