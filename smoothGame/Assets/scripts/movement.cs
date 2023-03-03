@@ -5,21 +5,25 @@ using System;
 
 public class movement : MonoBehaviour
 {
-    [SerializeField] private float speed = 5f; // movement speed
-    [SerializeField] private float airspeed = 5f; // movement speed
-    [SerializeField] private float drag = 1f;
+
+    //ground based movement
+    [SerializeField] private float speed = 6f;
+    [SerializeField] private float sprintMult = 1.5f;
+
+    [SerializeField] private float airspeed = 55f; 
+    [SerializeField] private float drag = 10f;
     [SerializeField] private float jumpForce = 7f; // jump force
     [SerializeField] private LayerMask groundLayer; // layermask for detecting ground
 
-    [SerializeField] private float groundCheckDistance = 0.7f; // radius of the circle used for ground detection
-    [SerializeField] private float sprintMult = 1.5f;
-    [SerializeField] private Vector2 wallJumpSpeed = new Vector2(5f,7f);
+    [SerializeField] private float groundCheckDistance = 0.6f; // radius of the circle used for ground detection
+    
+    [SerializeField] private Vector2 wallJumpSpeed = new Vector2(10f,7f);
 
     private Rigidbody2D rb; // reference to the player's Rigidbody2D
-    [SerializeField] private bool isGrounded = false; // flag for whether the player is grounded
-    [SerializeField] private int jumps = 2; // flag for whether the player can jump
-    private bool jumpWasPressed = false;
-    [SerializeField] private bool canWallJump = false;
+    private bool isGrounded = false; // flag for whether the player is grounded
+    [SerializeField] private int jumps = 0; // flag for number of double jumps
+    
+    private bool canWallJump = false;
     private int wallDirection = 1;
 
     [SerializeField] private float gravityMult = 1.5f;
@@ -27,6 +31,16 @@ public class movement : MonoBehaviour
 
     [SerializeField] private float terminalVelocity = -10f;
     [SerializeField] private float wallTerminalVelocity = -5f;
+
+    private bool jumpWasPressed = false;
+    private bool leftWasPressed = false;
+    private bool rightWasPressed = false;
+    private bool upWasPressed = false;
+    private bool downWasPressed = false;
+    [SerializeField] private float horizontalPushForce = 1f;
+    [SerializeField] private float upPushForce = 1f;
+    [SerializeField] private float downPushForce = 1f;
+
     private void Start()
     {
         rb = GetComponent<Rigidbody2D>(); // get the player's Rigidbody2D component
@@ -80,7 +94,7 @@ public class movement : MonoBehaviour
                 float speed = wallJumpSpeed.x * wallDirection;
                 rb.velocity = new Vector2(speed, wallJumpSpeed.y);
             }
-            else if (jumps > 0) // jump if the player is grounded and can jump
+            else if (isGrounded || jumps > 0) // jump if the player is grounded and can jump
             {
                 
                 rb.velocity = new Vector2(rb.velocity.x, jumpForce);
@@ -90,9 +104,31 @@ public class movement : MonoBehaviour
                 }
                 
             }
-            
         }
         jumpWasPressed = false;
+
+        if (leftWasPressed)
+        {
+            rb.AddForce(Vector2.right * horizontalPushForce, ForceMode2D.Impulse);
+        }
+        if (rightWasPressed)
+        {
+            rb.AddForce(Vector2.left * horizontalPushForce, ForceMode2D.Impulse);
+        }
+        if (upWasPressed)
+        {
+            rb.AddForce(Vector2.down * downPushForce, ForceMode2D.Impulse);
+        }
+        if (downWasPressed)
+        {
+            rb.AddForce(Vector2.up * upPushForce, ForceMode2D.Impulse);
+        }
+        downWasPressed = false;
+        upWasPressed = false;
+        rightWasPressed = false;
+        leftWasPressed = false;
+
+
 
         if (isGrounded)
         {
@@ -117,7 +153,14 @@ public class movement : MonoBehaviour
             rb.velocity = new Vector2(rb.velocity.x, maxFallSpeed);
         }
 
+
+
+
+
     }
+
+
+
 
 
     private void Update()
@@ -143,15 +186,36 @@ public class movement : MonoBehaviour
 
 
         if (isGrounded) // if the player is grounded, set canJump to true
-            {
-                jumps = 1;
-            }
-            if (Input.GetButtonDown("Jump"))
-            {
-                jumpWasPressed = true;
-            }
-
+        {
+            jumps = 0;
         }
+
+
+        if (Input.GetButtonDown("Jump"))
+        {
+            jumpWasPressed = true;
+        }
+        if (Input.GetButtonDown("ShootUp"))
+        {
+            upWasPressed = true;
+        }
+        if (Input.GetButtonDown("ShootLeft"))
+        {
+            leftWasPressed = true;
+        }
+        if (Input.GetButtonDown("ShootRight"))
+        {
+            rightWasPressed = true;
+        }
+        if (Input.GetButtonDown("ShootDown"))
+        {
+            downWasPressed = true;
+        }
+
+
+    }
+
+
     void OnCollisionStay2D(Collision2D collision)
     {
         //print(collision.gameObject.tag);
